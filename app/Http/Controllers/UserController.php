@@ -23,7 +23,7 @@ class UserController extends Controller
                 'password'=>'required',
                 'confirm_password'=>'required|same:password'
             ];
-            $validator = Validator::make($request->all(),rules);
+            $validator = Validator::make($request->all(),$rules);
             if($validator->fails()){
                 return redirect()->back()->withInput()->withErrors($validator);
             }
@@ -61,10 +61,11 @@ class UserController extends Controller
                 return redirect()->to('/login')->with($success);
             }
             $error = Session::flash('error', 'Registration Failed');
-                return redirect()->to('/register')->with($error);
+            return redirect()->to('/register')->with($error);
 
         }catch(\Exception $ex){
-
+            $error = Session::flash('error', $ex->getMessage());
+            return redirect()->back()->with($error);
         }
 
     }
@@ -72,11 +73,39 @@ class UserController extends Controller
     /**
      * User Login
      */
-    public function userLogin(Request $request){
+    public function loginUser(Request $request){
         try{
+            // set validation rules
+            $rules = [
+                'email'=>'required',
+                'password'=>'required',
+            ];
+            $validator = Validator::make($request->all(),$rules);
+            if($validator->fails()){
+                return redirect()->back()->withInput()->withErrors($validator);
+            }
 
+            # collect data
+            $email = $request->email;
+            $password = $request->password;
+
+            // check if user exists
+            $validateUser = User::where('email',$email)->first();
+            if(empty($validateUser)){
+                $error = Session::flash('error', 'Invalid login credential.');
+                return redirect()->back()->withInput()->with($error);
+            }
+            // validate password
+            $passwordCheck = Hash::check($password, $validateUser->password);
+            if(!$passwordCheck){
+                $error = Session::flash('error', 'Invalid login credential.');
+                return redirect()->back()->withInput()->with($error);
+            }
+            $storeUser = Session::put('user',$validateUser->email);
+            return redirect()->to('user/dashboard')->with($storeUser);
         }catch(\Exception $ex){
-            
+            $error = Session::flash('error', $ex->getMessage());
+            return redirect()->back()->with($error);
         }
     }
 }
